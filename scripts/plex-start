@@ -1,0 +1,10 @@
+#!/bin/sh
+
+export HOME="/Plex Media Server"
+export SUPPORT_PATH="/"
+export PLEX_MEDIA_SERVER_PIDFILE="/var/run/plex/plexmediaserver.pid"
+export PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR="/"
+export PLEX_MEDIA_SERVER_HOME="/usr/local/share/plexmediaserver"
+export LD_LIBRARY_PATH="/usr/local/share/plexmediaserver/lib"
+
+exec /usr/local/share/plexmediaserver/Plex_Media_Server

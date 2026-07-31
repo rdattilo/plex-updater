@@ -1,0 +1,91 @@
+#!/bin/sh
+
+set -e
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "ERROR: This script must be run as root"
+    exit 1
+fi
+
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 <version>"
+    echo "Example:"
+    echo "  $0 1.43.3.10828-00f62d37d"
+    exit 1
+fi
+
+VERSION="$1"
+BASE_URL="https://downloads.plex.tv/plex-media-server-new"
+ARCHIVE="PlexMediaServer-${VERSION}-FreeBSD-amd64.tar.bz2"
+URL="${BASE_URL}/${VERSION}/freebsd/${ARCHIVE}"
+
+INSTALL_DIR="/usr/local/share"
+PLEX_DIR="${INSTALL_DIR}/plexmediaserver"
+BACKUP_DIR="${PLEX_DIR}.bak"
+
+TMPDIR=$(mktemp -d)
+
+cleanup() {
+    rm -rf "${TMPDIR}"
+}
+
+trap cleanup EXIT
+
+echo "Checking Plex installation..."
+
+if [ ! -x "/usr/local/etc/rc.d/plexmediaserver" ]; then
+    echo "ERROR: Plex service script not found"
+    exit 1
+fi
+
+if [ ! -d "${PLEX_DIR}" ]; then
+    echo "ERROR: Plex installation directory not found: ${PLEX_DIR}"
+    exit 1
+fi
+
+echo "Checking Plex service status..."
+
+if service plexmediaserver status >/dev/null 2>&1; then
+    echo "Stopping Plex..."
+    service plexmediaserver stop
+else
+    echo "Plex is already stopped."
+fi
+
+echo "Downloading Plex ${VERSION}..."
+fetch --no-verify-peer -o "${TMPDIR}/${ARCHIVE}" "${URL}"
+
+echo "Validating archive..."
+tar -tjf "${TMPDIR}/${ARCHIVE}" >/dev/null
+
+echo "Extracting new version..."
+tar -xjf "${TMPDIR}/${ARCHIVE}" -C "${TMPDIR}"
+
+NEW_DIR=$(find "${TMPDIR}" -maxdepth 1 -type d -name "PlexMediaServer-*")
+
+if [ -z "${NEW_DIR}" ]; then
+    echo "ERROR: Could not find extracted Plex directory"
+    exit 1
+fi
+
+echo "Backing up current installation..."
+rm -rf "${BACKUP_DIR}"
+mv "${PLEX_DIR}" "${BACKUP_DIR}"
+
+echo "Installing new version..."
+mv "${NEW_DIR}" "${PLEX_DIR}"
+
+if id plex >/dev/null 2>&1; then
+    chown -R plex:plex "${PLEX_DIR}"
+fi
+
+echo "Creating Plex compatibility links..."
+ln -sfn "/Plex Media Server" "${PLEX_DIR}/Plex Media Server"
+
+echo "Starting Plex..."
+service plexmediaserver start
+
+echo
+echo "Upgrade complete:"
+echo "  Version: ${VERSION}"
+echo "  Backup:  ${BACKUP_DIR}"
