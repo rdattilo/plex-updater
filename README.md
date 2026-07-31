@@ -136,13 +136,58 @@ curl http://localhost:8080/upgrade/1.43.3.10828-00f62d37d
 }
 ```
 
+## Running as a FreeBSD Service
+
+A FreeBSD rc.d script is included at `rc.d/plexupdater`. The service runs `plex-updater` as root (required to invoke `service` and the upgrade script) and logs to `/var/log/plexupdater.log`.
+
+### Install the service
+
+```sh
+make install        # installs binary to /usr/local/sbin/plex-updater
+make install-rcd    # installs rc.d script to /usr/local/etc/rc.d/plexupdater
+```
+
+### Enable and start
+
+Add to `/etc/rc.conf`:
+
+```sh
+plexupdater_enable="YES"
+```
+
+Then start the service:
+
+```sh
+service plexupdater start
+```
+
+### Optional rc.conf variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `plexupdater_enable` | `NO` | Set to `YES` to enable at boot |
+| `plexupdater_user` | `root` | User to run the daemon as |
+| `plexupdater_logfile` | `/var/log/plexupdater.log` | Log file path |
+
+### Service commands
+
+```sh
+service plexupdater start
+service plexupdater stop
+service plexupdater status
+service plexupdater restart
+```
+
+---
+
 ## Repository Structure
 
 ```
 cmd/plex-updater/
   main.go              ← Go HTTP server source
 rc.d/
-  plexmediaserver      ← FreeBSD rc.d service script
+  plexmediaserver      ← FreeBSD rc.d service script for Plex Media Server
+  plexupdater          ← FreeBSD rc.d service script for plex-updater
 scripts/
   plex-start           ← Plex startup environment wrapper
   update-plex          ← Upgrade shell script
