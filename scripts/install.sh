@@ -186,9 +186,17 @@ enable_service() {
         sed -i '' 's/plexupdater_enable=.*/plexupdater_enable="YES"/' /etc/rc.conf
     fi
 
-    info "Starting plexupdater service..."
-    service plexupdater start
-    ok "plexupdater started. Logs: ${LOG_FILE}"
+    # If the service is already running, restart it to pick up the new binary.
+    # Otherwise, start it fresh.
+    if service plexupdater status >/dev/null 2>&1; then
+        info "plexupdater is already running — restarting to apply update..."
+        service plexupdater restart
+        ok "plexupdater restarted. Logs: ${LOG_FILE}"
+    else
+        info "Starting plexupdater service..."
+        service plexupdater start
+        ok "plexupdater started. Logs: ${LOG_FILE}"
+    fi
 }
 
 # ---------------------------------------------------------------------------
