@@ -125,7 +125,7 @@ latest_release() {
 
 install_binary() {
     if [ -n "${TAG}" ]; then
-        BINARY_URL="https://github.com/${REPO}/releases/download/${TAG}/${BINARY_NAME}-freebsd-${ARCH}"
+        BINARY_URL="https://github.com/${REPO}/releases/download/${TAG}/${BINARY_NAME}"
         info "Downloading ${BINARY_NAME} ${TAG} (freebsd/${ARCH})..."
         ${FETCH} -o "${INSTALL_BIN}" "${BINARY_URL}" || {
             warn "Pre-built binary not found for this release. Falling back to build from source."
@@ -153,7 +153,7 @@ install_binary() {
         [ -d "${SRC_DIR}" ] || err "Could not find extracted source directory."
 
         info "Compiling ${BINARY_NAME}..."
-        GOOS=freebsd GOARCH=${ARCH} go build -o "${INSTALL_BIN}" "${SRC_DIR}/cmd/plex-updater/"
+        GOTOOLCHAIN=local GOOS=freebsd GOARCH=${ARCH} go build -o "${INSTALL_BIN}" "${SRC_DIR}/cmd/plex-updater/"
     fi
 
     chmod 755 "${INSTALL_BIN}"
