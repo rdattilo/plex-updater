@@ -16,14 +16,17 @@ A lightweight HTTP server written in Go that manages Plex Media Server on a Free
 Run this as root on your FreeBSD system or jail:
 
 ```sh
-fetch -o - https://raw.githubusercontent.com/rdattilo/plex-updater/main/scripts/install.sh | sh
+fetch --no-verify-peer -o - https://raw.githubusercontent.com/rdattilo/plex-updater/main/scripts/install.sh | sh
 ```
 
+> **Note:** `--no-verify-peer` is needed on older FreeBSD versions with outdated CA certificates. The install script will automatically install `ca_root_nss` (Mozilla CA bundle) so that all subsequent HTTPS fetches work correctly without bypassing verification.
+
 This will:
-1. Download the pre-built FreeBSD binary (or build from source if no release exists)
-2. Install it to `/usr/local/sbin/plex-updater`
-3. Install the rc.d service script to `/usr/local/etc/rc.d/plexupdater`
-4. Enable and start the service automatically
+1. Install `ca_root_nss` if missing (fixes SSL on older FreeBSD)
+2. Download the pre-built FreeBSD binary (or build from source if no release exists)
+3. Install it to `/usr/local/sbin/plex-updater`
+4. Install the rc.d service script to `/usr/local/etc/rc.d/plexupdater`
+5. Enable and start the service automatically
 
 ## Building from Source
 
