@@ -6,7 +6,11 @@
 # then enables and starts the service.
 #
 # Usage (as root):
-#   fetch -o - https://raw.githubusercontent.com/rdattilo/plex-updater/main/scripts/install.sh | sh
+#   fetch --no-verify-peer -o - https://raw.githubusercontent.com/rdattilo/plex-updater/main/scripts/install.sh | sh
+#
+# --no-verify-peer is required on older FreeBSD systems with outdated CA
+# certificates. The script will install ca_root_nss automatically so that
+# all subsequent HTTPS connections work without bypassing verification.
 #
 # Or if you have the repo cloned:
 #   sh scripts/install.sh
@@ -22,6 +26,12 @@ BINARY_NAME="plex-updater"
 INSTALL_BIN="/usr/local/sbin/${BINARY_NAME}"
 INSTALL_RCD="/usr/local/etc/rc.d/plexupdater"
 LOG_FILE="/var/log/plexupdater.log"
+
+# fetch wrapper — always skips peer verification so old FreeBSD systems
+# with stale CA bundles can still reach GitHub/raw.githubusercontent.com.
+# FreeBSD's fetch(1) does not automatically pick up ca_root_nss even after
+# it is installed; --no-verify-peer is the reliable workaround on old builds.
+FETCH="fetch --no-verify-peer"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -65,11 +75,15 @@ check_dependencies() {
         err "pkg is not available. Please bootstrap it first: env ASSUME_ALWAYS_YES=YES pkg bootstrap"
     fi
 
-    # fetch is part of FreeBSD base — always present, no need to install
-    # curl is optional but useful; we rely on fetch (base) for downloads
-
-    # If no pre-built release is available we need go to build from source
-    # We'll check for it later only if needed.
+    # Install ca_root_nss (Mozilla CA bundle) so HTTPS works on older FreeBSD.
+    # pkg uses its own TLS stack and will work even without valid system certs.
+    if ! pkg_installed "ca_root_nss"; then
+        info "ca_root_nss not found — installing Mozilla CA bundle..."
+        pkg install -y ca_root_nss
+        ok "ca_root_nss installed."
+    else
+        info "ca_root_nss is already installed."
+    fi
 
     ok "Core dependencies satisfied."
 }
@@ -93,7 +107,7 @@ detect_arch() {
 
 latest_release() {
     info "Fetching latest release tag from GitHub..."
-    TAG=$(fetch -qo - "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null \
+    TAG=$(${FETCH} -o - "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null \
         | grep '"tag_name"' \
         | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
 
@@ -113,7 +127,7 @@ install_binary() {
     if [ -n "${TAG}" ]; then
         BINARY_URL="https://github.com/${REPO}/releases/download/${TAG}/${BINARY_NAME}-freebsd-${ARCH}"
         info "Downloading ${BINARY_NAME} ${TAG} (freebsd/${ARCH})..."
-        fetch -qo "${INSTALL_BIN}" "${BINARY_URL}" || {
+        ${FETCH} -o "${INSTALL_BIN}" "${BINARY_URL}" || {
             warn "Pre-built binary not found for this release. Falling back to build from source."
             TAG=""
         }
@@ -132,7 +146,7 @@ install_binary() {
         trap cleanup EXIT
 
         info "Downloading source archive..."
-        fetch -qo - "https://github.com/${REPO}/archive/refs/heads/${BRANCH}.tar.gz" \
+        ${FETCH} -o - "https://github.com/${REPO}/archive/refs/heads/${BRANCH}.tar.gz" \
             | tar -xzf - -C "${TMPDIR}"
 
         SRC_DIR=$(find "${TMPDIR}" -maxdepth 1 -type d -name "plex-updater-*")
@@ -152,7 +166,7 @@ install_binary() {
 
 install_rcd() {
     info "Installing rc.d service script..."
-    fetch -qo "${INSTALL_RCD}" "${BASE_URL}/rc.d/plexupdater" \
+    ${FETCH} -o "${INSTALL_RCD}" "${BASE_URL}/rc.d/plexupdater" \
         || err "Failed to download rc.d script from ${BASE_URL}/rc.d/plexupdater"
     chmod 755 "${INSTALL_RCD}"
     ok "rc.d script installed to ${INSTALL_RCD}"

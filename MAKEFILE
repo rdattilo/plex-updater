@@ -3,14 +3,17 @@ CMD         = ./cmd/plex-updater
 INSTALL_DIR = /usr/local/sbin
 RCD_DIR     = /usr/local/etc/rc.d
 
-.PHONY: all build install install-rcd clean
+.PHONY: all build build-freebsd install install-rcd clean
 
 all: build
 
 build:
-	go build -o $(BINARY) $(CMD)
+	GOTOOLCHAIN=local go build -o $(BINARY) $(CMD)
 
-install: build
+build-freebsd:
+	GOTOOLCHAIN=local GOOS=freebsd GOARCH=amd64 go build -o $(BINARY) $(CMD)
+
+install: build-freebsd
 	install -m 755 $(BINARY) $(INSTALL_DIR)/$(BINARY)
 
 install-rcd:
