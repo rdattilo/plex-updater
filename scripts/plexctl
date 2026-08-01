@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+#
+# plexctl - CLI for plex-updater
+#
+# Usage:
+#   plexctl [host] <command> [version]
+#
+# Host defaults to rd-plex:8080 if not specified.
+#
+# Commands:
+#   healthz            Check if plex-updater is running
+#   status             Show Plex service status
+#   start              Start Plex
+#   stop               Stop Plex
+#   restart            Restart Plex
+#   upgrade <version>  Upgrade Plex to the given version
+#
+# Examples:
+#   plexctl status
+#   plexctl upgrade 1.43.3.10828-00f62d37d
+#   plexctl rd-plex:8080 upgrade 1.43.3.10828-00f62d37d
+#
+
+set -euo pipefail
+
+DEFAULT_HOST="rd-plex:8080"
+
+usage() {
+    cat <<EOF
+Usage: plexctl [host] <command> [version]
+
+Commands:
+  healthz              Check if plex-updater is running
+  status               Show Plex service status
+  start                Start Plex
+  stop                 Stop Plex
+  restart              Restart Plex
+  upgrade <version>    Upgrade Plex to the given version
+
+Examples:
+  plexctl status
+  plexctl upgrade 1.43.3.10828-00f62d37d
+  plexctl rd-plex:8080 upgrade 1.43.3.10828-00f62d37d
+EOF
+    exit 1
+}
+
+pretty() {
+    if command -v jq &>/dev/null; then
+        jq .
+    else
+        cat
+    fi
+}
+
+call() {
+    local endpoint="$1"
+    curl -sf "${BASE_URL}/${endpoint}" | pretty
+}
+
+# Determine if first arg is a host override (not a known command)
+KNOWN_CMDS=("healthz" "status" "start" "stop" "restart" "upgrade")
+
+is_known_cmd() {
+    local arg="$1"
+    for cmd in "${KNOWN_CMDS[@]}"; do
+        [[ "$arg" == "$cmd" ]] && return 0
+    done
+    return 1
+}
+
+if [[ $# -eq 0 ]]; then
+    usage
+fi
+
+if ! is_known_cmd "$1"; then
+    HOST="$1"
+    shift
+else
+    HOST="${DEFAULT_HOST}"
+fi
+
+BASE_URL="http://${HOST}"
+
+CMD="${1:-}"
+shift || true
+
+case "${CMD}" in
+    healthz)
+        call "healthz"
+        ;;
+    status)
+        call "status"
+        ;;
+    start)
+        call "start"
+        ;;
+    stop)
+        call "stop"
+        ;;
+    restart)
+        call "restart"
+        ;;
+    upgrade)
+        VERSION="${1:-}"
+        if [[ -z "${VERSION}" ]]; then
+            echo "Error: upgrade requires a version argument."
+            echo "Example: plexctl upgrade 1.43.3.10828-00f62d37d"
+            exit 1
+        fi
+        echo "Upgrading Plex to ${VERSION} on ${HOST}..."
+        call "upgrade/${VERSION}"
+        ;;
+    *)
+        usage
+        ;;
+esac

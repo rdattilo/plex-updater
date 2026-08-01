@@ -3,7 +3,9 @@ CMD         = ./cmd/plex-updater
 INSTALL_DIR = /usr/local/sbin
 RCD_DIR     = /usr/local/etc/rc.d
 
-.PHONY: all build build-freebsd install install-rcd clean
+LOCAL_BIN   = /usr/local/bin
+
+.PHONY: all build build-freebsd install install-rcd install-local clean
 
 all: build
 
@@ -18,6 +20,9 @@ install: build-freebsd
 
 install-rcd:
 	install -m 755 rc.d/plexupdater $(RCD_DIR)/plexupdater
+
+install-local:
+	install -m 755 scripts/plexctl $(LOCAL_BIN)/plexctl
 
 clean:
 	rm -f $(BINARY)
