@@ -25,6 +25,30 @@ set -euo pipefail
 
 DEFAULT_HOST="rd-plex:8080"
 
+# ---------------------------------------------------------------------------
+# Dependency checks
+# ---------------------------------------------------------------------------
+
+if ! command -v curl &>/dev/null; then
+    echo "Error: curl is required but not installed."
+    echo ""
+    echo "Install it with:"
+    echo "  macOS:   brew install curl"
+    echo "  Ubuntu:  sudo apt install curl"
+    echo "  FreeBSD: pkg install curl"
+    exit 1
+fi
+
+if ! command -v jq &>/dev/null; then
+    echo "Warning: jq is not installed — output will be raw JSON."
+    echo ""
+    echo "Install it for pretty-printed output:"
+    echo "  macOS:   brew install jq"
+    echo "  Ubuntu:  sudo apt install jq"
+    echo "  FreeBSD: pkg install jq"
+    echo ""
+fi
+
 usage() {
     cat <<EOF
 Usage: plexctl [host] <command> [version]

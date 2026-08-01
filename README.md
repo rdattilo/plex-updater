@@ -220,6 +220,18 @@ service plexupdater restart
 
 `scripts/plexctl` is a bash script for controlling `plex-updater` from your local machine (macOS or Linux).
 
+### Prerequisites
+
+| Tool | Required | Purpose |
+|---|---|---|
+| `curl` | **Required** | Makes HTTP requests to plex-updater |
+| `jq` | Optional | Pretty-prints JSON responses |
+
+Install on macOS:
+```sh
+brew install curl jq
+```
+
 ### Install
 
 ```sh
