@@ -11,7 +11,21 @@ A lightweight HTTP server written in Go that manages Plex Media Server on a Free
   - `/usr/local/sbin/update-plex` — upgrade shell script
 - The `plex-updater` binary must run as **root** (so it can invoke `service` and the upgrade script)
 
-## Building
+## Quick Install (FreeBSD)
+
+Run this as root on your FreeBSD system or jail:
+
+```sh
+fetch -o - https://raw.githubusercontent.com/rdattilo/plex-updater/main/scripts/install.sh | sh
+```
+
+This will:
+1. Download the pre-built FreeBSD binary (or build from source if no release exists)
+2. Install it to `/usr/local/sbin/plex-updater`
+3. Install the rc.d service script to `/usr/local/etc/rc.d/plexupdater`
+4. Enable and start the service automatically
+
+## Building from Source
 
 ```sh
 make build
@@ -19,13 +33,18 @@ make build
 
 This produces a `plex-updater` binary in the current directory.
 
-## Installing
+To cross-compile a FreeBSD binary from macOS or Linux:
 
 ```sh
-make install
+GOOS=freebsd GOARCH=amd64 go build -o plex-updater ./cmd/plex-updater/
 ```
 
-Copies the binary to `/usr/local/sbin/plex-updater`.
+## Manual Install
+
+```sh
+make install        # installs FreeBSD binary to /usr/local/sbin/plex-updater
+make install-rcd    # installs rc.d script to /usr/local/etc/rc.d/plexupdater
+```
 
 ## Running
 
@@ -189,6 +208,7 @@ rc.d/
   plexmediaserver      ← FreeBSD rc.d service script for Plex Media Server
   plexupdater          ← FreeBSD rc.d service script for plex-updater
 scripts/
+  install.sh           ← One-shot installer for FreeBSD
   plex-start           ← Plex startup environment wrapper
   update-plex          ← Upgrade shell script
 MAKEFILE               ← Build and install targets
