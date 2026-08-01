@@ -5,11 +5,25 @@ A lightweight HTTP server written in Go that manages Plex Media Server on a Free
 ## Prerequisites
 
 - FreeBSD system with Plex Media Server installed
-- The following files must be present on the target system:
-  - `/usr/local/etc/rc.d/plexmediaserver` — rc.d service script
-  - `/usr/local/bin/plex-start` — Plex startup wrapper
-  - `/usr/local/sbin/update-plex` — upgrade shell script
-- The `plex-updater` binary must run as **root** (so it can invoke `service` and the upgrade script)
+- The following files must be present on the target system with the correct permissions:
+
+  | File | Permissions | Description |
+  |---|---|---|
+  | `/usr/local/etc/rc.d/plexmediaserver` | `755` (executable) | Plex rc.d service script |
+  | `/usr/local/bin/plex-start` | `755` (executable) | Plex startup environment wrapper |
+  | `/usr/local/sbin/update-plex` | `755` (executable) | Upgrade shell script |
+
+  Verify with:
+  ```sh
+  ls -la /usr/local/etc/rc.d/plexmediaserver /usr/local/bin/plex-start /usr/local/sbin/update-plex
+  ```
+
+  Fix permissions if needed:
+  ```sh
+  chmod 755 /usr/local/etc/rc.d/plexmediaserver /usr/local/bin/plex-start /usr/local/sbin/update-plex
+  ```
+
+- The `plex-updater` binary must run as **root** (required to invoke `service` and the upgrade script)
 
 ## Quick Install (FreeBSD)
 
@@ -202,6 +216,57 @@ service plexupdater restart
 
 ---
 
+## plexctl — Local CLI
+
+`scripts/plexctl` is a bash script for controlling `plex-updater` from your local machine (macOS or Linux).
+
+### Install
+
+```sh
+# From the repo:
+make install-local   # copies to /usr/local/bin/plexctl
+
+# Or manually:
+cp scripts/plexctl /usr/local/bin/plexctl
+chmod +x /usr/local/bin/plexctl
+```
+
+### Usage
+
+```sh
+plexctl <command> [version]
+plexctl [host:port] <command> [version]
+```
+
+The default host is `rd-plex:8080`. Override it by passing a host as the first argument.
+
+### Commands
+
+| Command | Description |
+|---|---|
+| `plexctl healthz` | Check if plex-updater is running |
+| `plexctl status` | Show Plex service status |
+| `plexctl start` | Start Plex |
+| `plexctl stop` | Stop Plex |
+| `plexctl restart` | Restart Plex |
+| `plexctl upgrade <version>` | Upgrade Plex to the given version |
+
+### Examples
+
+```sh
+plexctl status
+plexctl restart
+plexctl upgrade 1.43.3.10828-00f62d37d
+
+# Target a different host
+plexctl 192.168.1.50:8080 status
+plexctl 192.168.1.50:8080 upgrade 1.43.3.10828-00f62d37d
+```
+
+Output is pretty-printed JSON if `jq` is installed, otherwise raw JSON.
+
+---
+
 ## Repository Structure
 
 ```
@@ -212,6 +277,7 @@ rc.d/
   plexupdater          ← FreeBSD rc.d service script for plex-updater
 scripts/
   install.sh           ← One-shot installer for FreeBSD
+  plexctl              ← Local bash CLI for controlling plex-updater
   plex-start           ← Plex startup environment wrapper
   update-plex          ← Upgrade shell script
 MAKEFILE               ← Build and install targets

@@ -24,7 +24,11 @@ jobs:
 
       - name: Build FreeBSD amd64
         run: |
-          GOOS=freebsd GOARCH=amd64 go build -o plex-updater ./cmd/plex-updater/
+          CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 go build \
+            -trimpath \
+            -ldflags="-s -w" \
+            -o plex-updater \
+            ./cmd/plex-updater/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

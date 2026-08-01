@@ -7,11 +7,13 @@ import (
 	"net/http"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 const (
 	serviceName   = "plexmediaserver"
 	upgradeScript = "/usr/local/sbin/update-plex"
+	listenAddr    = ":8080"
 )
 
 type Response struct {
@@ -21,102 +23,120 @@ type Response struct {
 }
 
 func runCommand(name string, args ...string) Response {
-	cmd := exec.Command(name, args...)
+	log.Printf("[cmd] running: %s %s", name, strings.Join(args, " "))
 
+	start := time.Now()
+	cmd := exec.Command(name, args...)
 	out, err := cmd.CombinedOutput()
+	elapsed := time.Since(start).Round(time.Millisecond)
+
+	output := strings.TrimSpace(string(out))
 
 	resp := Response{
-		Output: strings.TrimSpace(string(out)),
+		Output: output,
 	}
 
 	if err != nil {
+		log.Printf("[cmd] error after %s: %s — %s", elapsed, err, output)
 		resp.Status = "error"
 		resp.Error = err.Error()
 		return resp
 	}
 
+	log.Printf("[cmd] completed in %s", elapsed)
 	resp.Status = "ok"
 	return resp
 }
 
-func writeJSON(w http.ResponseWriter, resp Response) {
+func writeJSON(w http.ResponseWriter, status int, resp Response) {
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(resp)
 }
 
-func healthz(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, Response{
-		Status: "ok",
+// loggingMiddleware wraps every handler to log the request method, path,
+// remote address, and how long it took to respond.
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		log.Printf("[req] %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
+		next.ServeHTTP(w, r)
+		log.Printf("[req] %s %s completed in %s", r.Method, r.URL.Path, time.Since(start).Round(time.Millisecond))
 	})
 }
 
-func status(w http.ResponseWriter, r *http.Request) {
-	resp := runCommand(
-		"service",
-		serviceName,
-		"status",
-	)
+func healthz(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, Response{Status: "ok"})
+}
 
-	writeJSON(w, resp)
+func status(w http.ResponseWriter, r *http.Request) {
+	resp := runCommand("service", serviceName, "status")
+	code := http.StatusOK
+	if resp.Status == "error" {
+		code = http.StatusInternalServerError
+	}
+	writeJSON(w, code, resp)
 }
 
 func start(w http.ResponseWriter, r *http.Request) {
-	resp := runCommand(
-		"service",
-		serviceName,
-		"start",
-	)
-
-	writeJSON(w, resp)
+	log.Printf("[plex] start requested")
+	resp := runCommand("service", serviceName, "start")
+	code := http.StatusOK
+	if resp.Status == "error" {
+		code = http.StatusInternalServerError
+	}
+	writeJSON(w, code, resp)
 }
 
 func stop(w http.ResponseWriter, r *http.Request) {
-	resp := runCommand(
-		"service",
-		serviceName,
-		"stop",
-	)
-
-	writeJSON(w, resp)
+	log.Printf("[plex] stop requested")
+	resp := runCommand("service", serviceName, "stop")
+	code := http.StatusOK
+	if resp.Status == "error" {
+		code = http.StatusInternalServerError
+	}
+	writeJSON(w, code, resp)
 }
 
 func restart(w http.ResponseWriter, r *http.Request) {
-	resp := runCommand(
-		"service",
-		serviceName,
-		"restart",
-	)
-
-	writeJSON(w, resp)
+	log.Printf("[plex] restart requested")
+	resp := runCommand("service", serviceName, "restart")
+	code := http.StatusOK
+	if resp.Status == "error" {
+		code = http.StatusInternalServerError
+	}
+	writeJSON(w, code, resp)
 }
 
 func upgrade(w http.ResponseWriter, r *http.Request) {
-	version := strings.TrimPrefix(
-		r.URL.Path,
-		"/upgrade/",
-	)
+	version := strings.TrimPrefix(r.URL.Path, "/upgrade/")
 
 	if version == "" {
-		writeJSON(w, Response{
+		log.Printf("[upgrade] request missing version")
+		writeJSON(w, http.StatusBadRequest, Response{
 			Status: "error",
 			Error:  "missing version",
 		})
 		return
 	}
 
-	log.Printf("upgrade requested: %s", version)
+	log.Printf("[upgrade] starting upgrade to version %s", version)
 
-	resp := runCommand(
-		upgradeScript,
-		version,
-	)
+	resp := runCommand(upgradeScript, version)
 
-	writeJSON(w, resp)
+	if resp.Status == "ok" {
+		log.Printf("[upgrade] completed successfully: %s", version)
+		writeJSON(w, http.StatusOK, resp)
+	} else {
+		log.Printf("[upgrade] failed for version %s: %s", version, resp.Error)
+		writeJSON(w, http.StatusInternalServerError, resp)
+	}
 }
 
 func main() {
-	mux := http.NewServeMux()
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
+	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", healthz)
 	mux.HandleFunc("/status", status)
 	mux.HandleFunc("/start", start)
@@ -124,9 +144,10 @@ func main() {
 	mux.HandleFunc("/restart", restart)
 	mux.HandleFunc("/upgrade/", upgrade)
 
-	fmt.Println("plexctl listening on :8080")
+	handler := loggingMiddleware(mux)
 
-	log.Fatal(
-		http.ListenAndServe(":8080", mux),
-	)
+	fmt.Printf("plex-updater listening on %s\n", listenAddr)
+	log.Printf("[init] plex-updater started, listening on %s", listenAddr)
+
+	log.Fatal(http.ListenAndServe(listenAddr, handler))
 }

@@ -9,11 +9,16 @@ LOCAL_BIN   = /usr/local/bin
 
 all: build
 
+# Strip debug info and disable symbol table to reduce binary size.
+# CGO_ENABLED=0 ensures a fully static binary with no libc dependency.
+LDFLAGS = -s -w
+BUILD_FLAGS = -trimpath -ldflags="$(LDFLAGS)"
+
 build:
-	GOTOOLCHAIN=local go build -o $(BINARY) $(CMD)
+	GOTOOLCHAIN=local CGO_ENABLED=0 go build $(BUILD_FLAGS) -o $(BINARY) $(CMD)
 
 build-freebsd:
-	GOTOOLCHAIN=local GOOS=freebsd GOARCH=amd64 go build -o $(BINARY) $(CMD)
+	GOTOOLCHAIN=local CGO_ENABLED=0 GOOS=freebsd GOARCH=amd64 go build $(BUILD_FLAGS) -o $(BINARY) $(CMD)
 
 install: build-freebsd
 	install -m 755 $(BINARY) $(INSTALL_DIR)/$(BINARY)
