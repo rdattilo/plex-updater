@@ -73,7 +73,10 @@ func status(w http.ResponseWriter, r *http.Request) {
 	resp := runCommand("service", serviceName, "status")
 	code := http.StatusOK
 	if resp.Status == "error" {
-		code = http.StatusInternalServerError
+		code = http.StatusServiceUnavailable
+		if resp.Output == "" {
+			resp.Output = serviceName + " is not running"
+		}
 	}
 	writeJSON(w, code, resp)
 }
@@ -84,6 +87,9 @@ func start(w http.ResponseWriter, r *http.Request) {
 	code := http.StatusOK
 	if resp.Status == "error" {
 		code = http.StatusInternalServerError
+		if resp.Output == "" {
+			resp.Output = "failed to start " + serviceName
+		}
 	}
 	writeJSON(w, code, resp)
 }
@@ -94,6 +100,9 @@ func stop(w http.ResponseWriter, r *http.Request) {
 	code := http.StatusOK
 	if resp.Status == "error" {
 		code = http.StatusInternalServerError
+		if resp.Output == "" {
+			resp.Output = "failed to stop " + serviceName
+		}
 	}
 	writeJSON(w, code, resp)
 }
@@ -104,6 +113,9 @@ func restart(w http.ResponseWriter, r *http.Request) {
 	code := http.StatusOK
 	if resp.Status == "error" {
 		code = http.StatusInternalServerError
+		if resp.Output == "" {
+			resp.Output = "failed to restart " + serviceName
+		}
 	}
 	writeJSON(w, code, resp)
 }

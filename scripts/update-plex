@@ -80,7 +80,7 @@ if id plex >/dev/null 2>&1; then
 fi
 
 echo "Creating Plex compatibility links..."
-ln -sfn "/Plex Media Server" "${PLEX_DIR}/Plex Media Server"
+ln -sfn "${PLEX_DIR}/Plex Media Server" "${PLEX_DIR}/Plex_Media_Server"
 
 echo "Starting Plex..."
 service plexmediaserver start
